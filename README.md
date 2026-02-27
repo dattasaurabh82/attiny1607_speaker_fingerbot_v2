@@ -189,7 +189,7 @@ When LED goes OFF → wake from sleep → servo presses Fingerbot → wait for b
 
 Test sketches live in `tests/` folder. Use these before running the main firmware.
 
-### `attiny1607_speaker_led_behaviour_test`
+[`attiny1607_speaker_led_behaviour_test.ino`](tests/attiny1607_speaker_led_behaviour_test/attiny1607_speaker_led_behaviour_test.ino)
 
 **Purpose:** Observe and analyze the speaker LED behavior (the "dance" pattern during boot).
 
