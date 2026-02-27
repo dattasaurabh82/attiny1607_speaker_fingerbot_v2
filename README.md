@@ -15,7 +15,7 @@ When LED goes OFF → wake from sleep → servo presses Fingerbot → wait for b
 
 | LDR based comparator | Microcontroller | Board Top (Combined) | Board Bottom (Combined)| 3D Render of PCB |
 | --- | --- | --- | --- | --- |
-| ![alt text](HW/sch_ldr_comp.png) | ![alt text](HW/sch_attiny.png) | ![alt text](HW/BRD_top.png) | ![alt text](HW/BRD_bottom.png) | ![alt text](HW/BRD_3D.jpg) |
+| ![alt text](assets/sch_ldr_comp.png) | ![alt text](assets/sch_attiny.png) | ![alt text](assets/BRD_top.png) | ![alt text](assets/BRD_bottom.png) | ![alt text](assets/BRD_3D.jpg) |
 
 
 [SCHEMATIC](HW/schematic.pdf)
