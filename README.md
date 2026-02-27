@@ -19,6 +19,24 @@ When LED goes OFF → wake from sleep → servo presses Fingerbot → wait for b
 
 ---
 
+## Dependencies
+
+- megaTinyCore: https://github.com/SpenceKonde/megaTinyCore
+- Servo library: `#include <Servo_megaTinyCore.h>` (NOT `<Servo.h>`) Reason: [As Described here](https://github.com/SpenceKonde/megaTinyCore?tab=readme-ov-file#servo)
+
+---
+
+## Dev Setup
+
+- IDE: Arduino IDE 2.3.8
+- UPDI programmer: Could your [homebrewed one](https://github.com/SpenceKonde/AVR-Guidance/blob/master/UPDI/jtag2updi.md), but I used and followed instructions [from this one](https://learn.adafruit.com/adafruit-updi-friend?view=all)
+
+### Compile and Upload settings:
+
+![alt text](<assets/Screenshot 2026-02-27 at 11.32.47.png>)
+
+---
+
 ## Flow
 
 ### SETUP (runs once at boot)
@@ -165,12 +183,47 @@ When LED goes OFF → wake from sleep → servo presses Fingerbot → wait for b
 #define BOOT_WAIT_MS     8000     // Wait for speaker boot (covers LED dance)
 ```
 
-## Dependencies
-
-- megaTinyCore: https://github.com/SpenceKonde/megaTinyCore
-- Servo library: `#include <Servo_megaTinyCore.h>` (NOT `<Servo.h>`) Reason: [As Described here](https://github.com/SpenceKonde/megaTinyCore?tab=readme-ov-file#servo)
-
 ---
+
+## Tests
+
+Test sketches live in `tests/` folder. Use these before running the main firmware.
+
+### `attiny1607_speaker_led_behaviour_test`
+
+**Purpose:** Observe and analyze the speaker LED behavior (the "dance" pattern during boot).
+
+**Use this to:**
+- Verify your LDR/comparator circuit is detecting LED state changes
+- Measure the speaker's startup LED timing
+- Determine the correct `BOOT_WAIT_MS` value
+
+**Hardware:**
+- PC2 (pin 19) → Comparator OUT
+- PB2 (pin 14) → TX to serial adapter RX
+
+**Usage:**
+1. Upload the sketch
+2. Open serial monitor at 115200 baud
+3. Turn speaker ON/OFF and observe output
+
+**Example output:**
+```
+LED Analyzer started
+Initial: ON
+[1523] OFF (was ON 1523ms)
+[1842] ON (was OFF 319ms)
+[2105] OFF (was ON 263ms)
+[2389] ON (was OFF 284ms)
+[8245] OFF (was ON 5856ms)   ← longest ON = solid period
+```
+
+**Reading the output:**
+- `[elapsed_ms]` = time since sketch started
+- `ON` / `OFF` = current LED state (as seen by comparator)
+- `(was STATE duration)` = previous state and how long it lasted
+
+The longest `ON` duration before a final `OFF` tells you how long the LED stays solid after the boot dance. Set `BOOT_WAIT_MS` to be longer than this.
 
 ## License
 
