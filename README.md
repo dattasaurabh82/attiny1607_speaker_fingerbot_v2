@@ -243,4 +243,4 @@ The longest `ON` duration before a final `OFF` tells you how long the LED stays 
 
 ## License
 
-[MIT]()
+[MIT](LICENSE)
