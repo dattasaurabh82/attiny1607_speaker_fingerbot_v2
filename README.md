@@ -1,15 +1,31 @@
 # Speaker Watchdog - ATtiny1607
 
 ## Overview
+
 Monitors speaker power LED via LDR + comparator.
 When LED goes OFF → wake from sleep → servo presses Fingerbot → wait for boot → sleep.
 
 ## Hardware
+
 - PC2 (pin 19): Trigger input (comparator OUT + manual button, shared via R8 10K)
 - PA5 (pin 6): Servo PWM (TCA0 WO5)
 - PB2 (pin 14): TX (debug serial, TX-only)
 
+### Our custom circuit
+
+| LDR based comparator | Microcontroller | Board Top (Combined) | Board Bottom (Combined)| 3D Render of PCB |
+| --- | --- | --- | --- | --- |
+| ![alt text](HW/sch_ldr_comp.png) | ![alt text](HW/sch_attiny.png) | ![alt text](HW/BRD_top.png) | ![alt text](HW/BRD_bottom.png) | ![alt text](HW/BRD_3D.jpg) |
+
+
+[SCHEMATIC](HW/schematic.pdf)
+
+--- 
+
 ## Polarity
+
+... of trigger matters ...
+
 | Module | LED ON | LED OFF | Trigger Edge |
 |--------|--------|---------|--------------|
 | [off-shelf](https://amzn.eu/d/02HeSikt) (Test Module) | PC2 LOW | PC2 HIGH | RISING |
