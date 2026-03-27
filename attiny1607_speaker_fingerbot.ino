@@ -33,12 +33,12 @@
 #define INVERT_TRIGGER false
 
 // Servo positions in degrees - calibrate for your Fingerbot setup
-#define SERVO_REST 42   // Resting position (not touching button)
-#define SERVO_PRESS 94  // Press position (pushing Fingerbot button)
+#define SERVO_REST 45   // Resting position (not touching button)
+#define SERVO_PRESS 90  // Press position (pushing Fingerbot button)
 
 // Timing in milliseconds
 #define DEBOUNCE_MS 50        // Wait after wake before validating trigger
-#define PRESS_HOLD_MS 1700    // How long servo holds the press position
+#define PRESS_HOLD_MS 1600    // How long servo holds the press position
 #define PRESS_SETTLE_MS 1000  // Wait for servo to return to rest before detach
 #define SERVO_INIT_MS 1000    // Initial servo settle time at boot
 #define BOOT_WAIT_MS 8000     // Wait for speaker boot (covers LED dance)
