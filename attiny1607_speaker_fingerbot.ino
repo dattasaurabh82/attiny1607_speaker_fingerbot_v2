@@ -25,7 +25,7 @@
 
 // Debug output over serial (TX-only, 115200 baud)
 // Comment out for production to save power
-#define DEBUG_ENABLED
+// #define DEBUG_ENABLED
 
 // Trigger polarity - depends on which LDR module you're using:
 //   true  = off-shelf test module (PC2 HIGH when LED OFF)
@@ -33,8 +33,8 @@
 #define INVERT_TRIGGER false
 
 // Servo positions in degrees - calibrate for your Fingerbot setup
-#define SERVO_REST 45   // Resting position (not touching button)
-#define SERVO_PRESS 90  // Press position (pushing Fingerbot button)
+#define SERVO_REST 30   // Resting position (not touching button)
+#define SERVO_PRESS 76  // Press position (pushing Fingerbot button)
 
 // Timing in milliseconds
 #define DEBOUNCE_MS 50        // Wait after wake before validating trigger
@@ -250,7 +250,7 @@ void handleWakeUp() {
   Serial.println(F("ms vefore pressing servo"));
 #endif
 
-  delay(2000);
+  delay(SERVO_PRESS_AWAIT);
   //============================= //
 
   // 4. Servo press
