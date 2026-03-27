@@ -30,18 +30,19 @@
 // Trigger polarity - depends on which LDR module you're using:
 //   true  = off-shelf test module (PC2 HIGH when LED OFF)
 //   false = our custom PCB (PC2 LOW when LED OFF)
-#define INVERT_TRIGGER true
+#define INVERT_TRIGGER false
 
 // Servo positions in degrees - calibrate for your Fingerbot setup
-#define SERVO_REST 45   // Resting position (not touching button)
-#define SERVO_PRESS 92  // Press position (pushing Fingerbot button)
+#define SERVO_REST 42   // Resting position (not touching button)
+#define SERVO_PRESS 94  // Press position (pushing Fingerbot button)
 
 // Timing in milliseconds
 #define DEBOUNCE_MS 50        // Wait after wake before validating trigger
-#define PRESS_HOLD_MS 1500    // How long servo holds the press position
+#define PRESS_HOLD_MS 1700    // How long servo holds the press position
 #define PRESS_SETTLE_MS 1000  // Wait for servo to return to rest before detach
 #define SERVO_INIT_MS 1000    // Initial servo settle time at boot
 #define BOOT_WAIT_MS 8000     // Wait for speaker boot (covers LED dance)
+#define SERVO_PRESS_AWAIT 2000
 
 // ==================== PIN DEFINITIONS ====================
 
@@ -239,6 +240,18 @@ void handleWakeUp() {
 
   // 3. Disable interrupt
   disableTriggerInterrupt();
+
+// ** NOTE: Add some await before Sevro press
+// Or else if we press imemdiately after the speaker gets OFF (speaker LED OFF),
+// then pressing it, to turn it ON doesn't work
+#ifdef DEBUG_ENABLED
+  Serial.print(F("Waiting for: "));
+  Serial.print(SERVO_PRESS_AWAIT);
+  Serial.println(F("ms vefore pressing servo"));
+#endif
+
+  delay(2000);
+  //============================= //
 
   // 4. Servo press
   servoPress();
