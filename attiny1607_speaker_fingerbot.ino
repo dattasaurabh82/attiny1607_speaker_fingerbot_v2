@@ -74,9 +74,7 @@ void disableUnusedPins() {
   PORTA.PIN6CTRL = PORT_PULLUPEN_bm;
   PORTA.PIN7CTRL = PORT_PULLUPEN_bm;
 
-  // PORTB: PB2=TX, PB3=RX (handled separately), rest unused
-  PORTB.PIN0CTRL = PORT_PULLUPEN_bm;
-  PORTB.PIN1CTRL = PORT_PULLUPEN_bm;
+  // PORTB: PB0/PB1=TWI (handled by disableTWI), PB2=TX, PB3=RX (handled by disableSerialPins), rest unused
   PORTB.PIN4CTRL = PORT_PULLUPEN_bm;
   PORTB.PIN5CTRL = PORT_PULLUPEN_bm;
 
@@ -94,6 +92,16 @@ void disableSerialPins() {
   cli();
   PORTB.OUT &= ~PIN2_bm;
   PORTB.OUT &= ~PIN3_bm;
+  sei();
+}
+
+void disableTWI() {
+  // Set TWI pins (PB0, PB1) as OUTPUT LOW for lowest power
+  PORTB.DIRSET = PIN0_bm;
+  PORTB.DIRSET = PIN1_bm;
+  cli();
+  PORTB.OUT &= ~PIN0_bm;
+  PORTB.OUT &= ~PIN1_bm;
   sei();
 }
 
@@ -190,6 +198,7 @@ void servoPress() {
 #endif
 
   servo.detach();
+  pinMode(SERVO_PIN, INPUT_PULLUP);
 }
 
 // ==================== MAIN HANDLER ====================
@@ -241,13 +250,15 @@ void handleWakeUp() {
   // 3. Disable interrupt
   disableTriggerInterrupt();
 
-// ** NOTE: Add some await before Sevro press
-// Or else if we press imemdiately after the speaker gets OFF (speaker LED OFF),
+// ** NOTE: Add some await before Servo press
+// Or else if we press immediately after the speaker gets OFF (speaker LED OFF),
 // then pressing it, to turn it ON doesn't work
 #ifdef DEBUG_ENABLED
-  Serial.print(F("Waiting for: "));
-  Serial.print(SERVO_PRESS_AWAIT);
-  Serial.println(F("ms vefore pressing servo"));
+  if (serialActive) {
+    Serial.print(F("Waiting for: "));
+    Serial.print(SERVO_PRESS_AWAIT);
+    Serial.println(F("ms before pressing servo"));
+  }
 #endif
 
   delay(SERVO_PRESS_AWAIT);
@@ -283,6 +294,9 @@ void setup() {
   // 2. Disable unused pins
   disableUnusedPins();
 
+  // 2b. Disable TWI pins (PB0, PB1 as OUTPUT LOW)
+  disableTWI();
+
   // 3-4. Disable peripherals
   disablePeripherals();
 
@@ -294,6 +308,7 @@ void setup() {
   servo.write(SERVO_REST);
   delay(SERVO_INIT_MS);
   servo.detach();
+  pinMode(SERVO_PIN, INPUT_PULLUP);
 
   // 10. Enable interrupts
   sei();

@@ -17,23 +17,27 @@ When LED goes OFF → wake from sleep → servo presses Fingerbot → wait for b
 | --- | --- | --- | --- | --- |
 | ![alt text](assets/sch_ldr_comp.png) | ![alt text](assets/sch_attiny.png) | ![alt text](assets/BRD_top.png) | ![alt text](assets/BRD_bottom.png) | ![alt text](assets/BRD_3D.jpg) |
 
+> [!Note]
+[SCHEMATIC](HW/schematic.pdf) (V-1.0) 
 
-[SCHEMATIC](HW/schematic.pdf)
-
---- 
-
-## Polarity
-
-... of trigger matters ...
-
-| Module | LED ON | LED OFF | Trigger Edge |
-|--------|--------|---------|--------------|
-| [off-shelf](https://amzn.eu/d/02HeSikt) (Test Module) | PC2 LOW | PC2 HIGH | RISING |
-| Our PCB | PC2 HIGH | PC2 LOW | FALLING |
-
-> Use `#define INVERT_TRIGGER true` for Test module.
+> [!Tip]
+> _Check below, towards the end, for a better version with more current saving (aka improved battery life)_
 
 ---
+
+### Assembly (view)
+
+<!-- ![alt text](assets/PXL_20260327_125351246.jpg) -->
+
+<p align="center">
+  <img src="assets/PXL_20260327_125351246.jpg" alt="alt text" width="500">
+</p>
+
+| Board bottom view | Board top view | Side view | Angled view |
+| --- | --- | --- | --- |
+| ![alt text](assets/PXL_20260327_001955927.PORTRAIT.ORIGINAL.jpg) | ![alt text](assets/PXL_20260327_002005292.PORTRAIT.ORIGINAL.jpg) | ![alt text](assets/PXL_20260327_002114028.PORTRAIT.ORIGINAL.jpg) | ![alt text](assets/PXL_20260327_002149851.PORTRAIT.jpg) |
+
+--- 
 
 ## Dependencies
 
@@ -199,6 +203,15 @@ When LED goes OFF → wake from sleep → servo presses Fingerbot → wait for b
 #define BOOT_WAIT_MS     8000     // Wait for speaker boot (covers LED dance)
 ```
 
+### Polarity of trigger (INTERRUPT) matters
+
+| Module | LED ON | LED OFF | Trigger Edge |
+|--------|--------|---------|--------------|
+| [off-shelf](https://amzn.eu/d/02HeSikt) (Test Module) | PC2 LOW | PC2 HIGH | RISING |
+| Our PCB | PC2 HIGH | PC2 LOW | FALLING |
+
+> Use `#define INVERT_TRIGGER true` for Test module.
+
 ---
 
 ## Tests
@@ -240,6 +253,56 @@ Initial: ON
 - `(was STATE duration)` = previous state and how long it lasted
 
 The longest `ON` duration before a final `OFF` tells you how long the LED stays solid after the boot dance. Set `BOOT_WAIT_MS` to be longer than this.
+
+## OOps ma, HW could have been a bit better 😅
+
+So. after assembly of the board adn uploading the program, found out that the idle current consumption of the system is around 2.5 mA and the peak, when the servo is active, is around 12 mA. So, even though we picked low current comparator, put our micro to deep sleep and all that, we will have an av. battery life of a month (if we are lucky) based on the following ...
+
+<!-- placeholder for video -->
+
+| State | Current | Duration/day |
+| --- | --- | ---| 
+| Sleep (servo connected) | ~2.5 mA | ~23.9 hrs | 
+| Wake + servo active | ~12 mA | ~0.1 hrs (5 triggers × ~1.2 min each) | 
+
+### Daily consumption
+
+```
+(2.5 mA × 23.9 hr) + (12 mA × 0.1 hr) = 59.75 + 1.2 ≈ 61 mAh/day
+```
+
+#### Battery life for CR123A (1500 mAh):
+
+```
+1500 mAh / 61 mAh/day ≈ 24-25 days
+```
+
+But with the servo disconnected, we found out that the current consumption is very low. 
+- **Deep Sleep state**: 0.1 mA (100µA) (_Of-course, there's room for improvement there too_)
+
+<!-- Placeholder for video -->
+
+### So the solution?
+
+Add a low power MOSFET to control servo's power lines ...  
+
+_WIP_
+
+```
+VCC (3V) ───┬─────────── Servo VCC (red)
+            │
+         [SOURCE]
+            │
+   MCU ──┬──[GATE]  SI2301 (P-FET)
+   (PA6) │    │
+         R1  [DRAIN]
+        10k    │
+         │    └─────────── Servo VCC
+        GND
+
+Servo GND ──────────────── GND
+Servo SIG ──────────────── PA5 (existing)
+```
 
 ## License
 
