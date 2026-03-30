@@ -258,7 +258,7 @@ The longest `ON` duration before a final `OFF` tells you how long the LED stays 
 
 So. after assembly of the board adn uploading the program, found out that the idle current consumption of the system is around 2.5 mA and the peak, when the servo is active, is around 12 mA. So, even though we picked low current comparator, put our micro to deep sleep and all that, we will have an av. battery life of a month (if we are lucky) based on the following ...
 
-<!-- placeholder for video -->
+![alt text](assets/v1.0_power_analysis_with_servo.gif)
 
 | State | Current | Duration/day |
 | --- | --- | ---| 
@@ -277,10 +277,10 @@ So. after assembly of the board adn uploading the program, found out that the id
 1500 mAh / 61 mAh/day ≈ 24-25 days
 ```
 
-But with the servo disconnected, we found out that the current consumption is very low. 
+But with the servo disconnected, we found out that the current consumption is very low, in deep-sleep. 
 - **Deep Sleep state**: 0.1 mA (100µA) (_Of-course, there's room for improvement there too_)
 
-<!-- Placeholder for video -->
+![alt text](assets/v1.0_power_analysis_without_servo.gif)
 
 ### So the solution?
 
