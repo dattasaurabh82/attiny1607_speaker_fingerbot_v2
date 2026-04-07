@@ -304,6 +304,10 @@ Servo GND ──────────────── GND
 Servo SIG ──────────────── PA5 (existing)
 ```
 
+_WIP_
+
+![alt text](<assets/Screenshot 2026-04-07 at 17.49.53.png>)
+
 ## License
 
 [MIT](LICENSE)
