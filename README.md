@@ -1,4 +1,7 @@
-# Speaker Watchdog - ATtiny1607
+# Speaker Watchdog V2 - ATtiny1607
+
+> [!Note]
+> [attiny1607_speaker_fingerbot_v1](https://github.com/dattasaurabh82/attiny1607_speaker_fingerbot)
 
 ## Overview
 
@@ -9,19 +12,28 @@ When LED goes OFF → wake from sleep → servo presses Fingerbot → wait for b
 
 - PC2 (pin 19): Trigger input (comparator OUT + manual button, shared via R8 10K)
 - PA5 (pin 6): Servo PWM (TCA0 WO5)
-- PB2 (pin 14): TX (debug serial, TX-only)
+- PA6 (pin 7): Servo power gate (SI2301 P-FET control) ← **V2**
+- PB2 (pin 14): TX (debug serial)
+- PB3 (pin 15): RX (via JP2 jumper) ← **V2**
 
-### Our custom circuit
+### Circuit info
 
 | LDR based comparator | Microcontroller | Board Top (Combined) | Board Bottom (Combined)| 3D Render of PCB |
 | --- | --- | --- | --- | --- |
 | ![alt text](assets/sch_ldr_comp.png) | ![alt text](assets/sch_attiny.png) | ![alt text](assets/BRD_top.png) | ![alt text](assets/BRD_bottom.png) | ![alt text](assets/BRD_3D.jpg) |
 
 > [!Note]
-[SCHEMATIC](HW/schematic.pdf) (V-1.0) 
+[SCHEMATIC](HW/schematic.pdf) (V-2.0)   
 
-> [!Tip]
-> _Check below, towards the end, for a better version with more current saving (aka improved battery life)_
+### What changed from V1, in V2?
+> Added SI2301 P-FET to control servo power, reducing sleep current from ~2.5mA to ~300µA. Battery life improved from ~25 days to **~12 months**!
+
+![alt text](assets/MOSFET_servo_pwr_ctrl.png)
+
+| MCU PA6 | Gate | Vgs | FET State | Servo |
+|---------|------|-----|-----------|-------|
+| HIGH (or floating) | VCC | 0V | OFF | Unpowered |
+| LOW | GND | -3V | ON | Powered |
 
 ---
 
@@ -62,24 +74,31 @@ When LED goes OFF → wake from sleep → servo presses Fingerbot → wait for b
 ### SETUP (runs once at boot)
 ```
 ┌───────────────────────────────────────────────────────────────────┐
-│  SETUP                                                            │
-│  ─────                                                            │
+│  SETUP (V2)                                                       │
+│  ──────────                                                       │
 │  1. disableSerialPins()            // TX/RX driven LOW            │
-│  2. disableUnusedPins()            // unused pins → INPUT_PULLUP  │
-│  3. ADC0.CTRLA &= ~ADC_ENABLE_bm   // disable ADC                 │
-│  4. SPI0.CTRLA &= ~SPI_ENABLE_bm   // disable SPI                 │
-│  5. setupTriggerPin()              // PC2 edge interrupt          │
-│  6. servo.attach(PA5)                                             │
-│  7. servo.write(SERVO_REST)                                       │
-│  8. delay(500)                     // let servo settle            │
-│  9. servo.detach()                 // stop PWM, save power        │
-│ 10. sei()                          // enable global interrupts    │
-│ 11. set_sleep_mode(SLEEP_MODE_PWR_DOWN)                           │
-│ 12. sleep_enable()                                                │
+│  2. disableUnusedPins()            // PA6 NOT included (active)   │
+│  2b. disableTWI()                  // PB0/PB1 OUTPUT LOW          │
+│  3. disablePeripherals()           // ADC, SPI off                │
+│  4. setupTriggerPin()              // PC2 edge interrupt          │
+│                                                                   │
+│  5. servoPowerOn()                 // PA6=LOW → FET ON            │
+│  6. delay(SERVO_STABILIZE_MS)      // Let servo settle (20ms)     │
+│  7. servo.attach(PA5)                                             │
+│  8. servo.write(SERVO_REST)                                       │
+│  9. delay(SERVO_INIT_MS)           // Servo settles               │
+│ 10. servo.detach()                                                │
+│ 11. pinMode(SERVO_PIN, INPUT_PULLUP)                              │
+│ 12. servoPowerOff()                // PA6=HIGH → FET OFF          │
+│                                                                   │
+│ 13. sei()                          // Enable global interrupts    │
+│ 14. set_sleep_mode(PWR_DOWN)                                      │
+│ 15. sleep_enable()                                                │
 └──────────────────────────────┬────────────────────────────────────┘
                                │
                                ▼
                           ENTER LOOP
+                    (servo unpowered, ~100µA sleep)
 ```
 
 ### MAIN LOOP
@@ -87,9 +106,9 @@ When LED goes OFF → wake from sleep → servo presses Fingerbot → wait for b
 ┌─────────────────────────────────────────────────────────────────┐
 │  LOOP START                                                     │
 │  ──────────                                                     │
-│  - Clear any pending interrupt flags                            │
+│  - Clear pending flags                                          │
 │  - sleep_cpu()                                                  │
-│  - ... MCU stops here, draws ~1-5µA ...                         │
+│  - ... MCU draws ~100µA (servo is OFF via FET) ...              │
 └──────────────────────────────┬──────────────────────────────────┘
                                │
                Speaker turns OFF (LED OFF)
@@ -100,73 +119,67 @@ When LED goes OFF → wake from sleep → servo presses Fingerbot → wait for b
 ┌─────────────────────────────────────────────────────────────────┐
 │  ISR(PORTC_PORT_vect)                                           │
 │  ────────────────────                                           │
-│  - flags = VPORTC.INTFLAGS     // fast read                     │
-│  - PORTC.INTFLAGS = flags      // clear flags                   │
-│  - triggered = 1               // set flag for main loop        │
-│  - (ISR exits, loop resumes after sleep_cpu)                    │
+│  - flags = VPORTC.INTFLAGS                                      │
+│  - PORTC.INTFLAGS = flags                                       │
+│  - triggered = 1                                                │
 └──────────────────────────────┬──────────────────────────────────┘
                                │
                                ▼
 ┌─────────────────────────────────────────────────────────────────┐
-│  1. WAKE CHECK                                                  │
-│     - if (!triggered) → back to sleep (spurious wake)           │
+│  1. WAKE + DEBOUNCE                                             │
 │     - triggered = 0                                             │
-│     - #ifdef DEBUG_ENABLED: Serial.begin(115200)                │
+│     - [DEBUG: Serial.begin()]                                   │
+│     - delay(DEBOUNCE_MS)                                        │
+│     - isValidTrigger() check                                    │
+│     - If FALSE → return (skip to sleep)                         │
 └──────────────────────────────┬──────────────────────────────────┘
                                │
                                ▼
 ┌─────────────────────────────────────────────────────────────────┐
-│  2. DEBOUNCE                                                    │
-│     - delay(50ms)                                               │
-│     - Re-read PC2 actual state                                  │
-│     - isValidTrigger():                                         │
-│         Current module: valid if PC2 == HIGH (LED OFF)          │
-│         Our PCB: valid if PC2 == LOW (LED OFF)                  │
-│     - If NOT valid → false trigger → skip to step 6 (sleep)     │
+│  2. DISABLE INTERRUPT                                           │
+│     - disableTriggerInterrupt()                                 │
+│     - PC2 edges now ignored (prevents LED dance re-trigger)     │
 └──────────────────────────────┬──────────────────────────────────┘
                                │
                                ▼
 ┌─────────────────────────────────────────────────────────────────┐
-│  3. DISABLE INTERRUPT                                           │
-│     - PORTC.PIN2CTRL &= ~PORT_ISC_gm                            │
-│     - PC2 edges now ignored                                     │
-│     - Prevents re-trigger during speaker boot LED dance         │
+│  3. AWAIT BEFORE PRESS                                          │
+│     - delay(SERVO_PRESS_AWAIT)    // 2000ms                     │
+│     - Speaker needs time after power-off before restart works   │
 └──────────────────────────────┬──────────────────────────────────┘
                                │
                                ▼
 ┌─────────────────────────────────────────────────────────────────┐
-│  4. SERVO PRESS                                                 │
-│     - servo.attach(SERVO_PIN)                                   │
-│     - servo.write(SERVO_PRESS)    // press position             │
-│     - delay(200ms)                // hold press                 │
-│     - servo.write(SERVO_REST)     // release                    │
-│     - delay(200ms)                // settle                     │
-│     - servo.detach()              // stop PWM, save power       │
+│  4. SERVO PRESS (V2 - with power control)                       │
+│     a. servoPowerOn()             // PA6=LOW → FET ON           │
+│     b. delay(SERVO_STABILIZE_MS)  // Let servo power stabilize  │
+│     c. servo.attach(SERVO_PIN)                                  │
+│     d. servo.write(SERVO_PRESS)   // Press position (76°)       │
+│     e. delay(PRESS_HOLD_MS)       // Hold 1600ms                │
+│     f. servo.write(SERVO_REST)    // Release (30°)              │
+│     g. delay(PRESS_SETTLE_MS)     // Settle 1000ms              │
+│     h. servo.detach()                                           │
+│     i. pinMode(SERVO_PIN, INPUT_PULLUP)                         │
+│     j. servoPowerOff()            // PA6=HIGH → FET OFF         │
 └──────────────────────────────┬──────────────────────────────────┘
                                │
                                ▼
 ┌─────────────────────────────────────────────────────────────────┐
-│  5. FIXED WAIT                                                  │
-│     - delay(8000)                 // 8 seconds                  │
-│     - Speaker boots, LED does dance, we ignore it all           │
-│     - Interrupt is disabled so no re-triggers                   │
+│  5. BOOT WAIT                                                   │
+│     - delay(BOOT_WAIT_MS)         // 8000ms                     │
+│     - Speaker boots, LED dances, interrupt disabled             │
+│     - Servo already OFF (power cut by FET)                      │
 └──────────────────────────────┬──────────────────────────────────┘
                                │
                                ▼
 ┌─────────────────────────────────────────────────────────────────┐
 │  6. RE-ENABLE + CLEANUP + SLEEP                                 │
-│     - PORTC.PIN2CTRL = PORT_ISC_xxxx_gc   // re-enable edge     │
-│     - PORTC.INTFLAGS = PIN2_bm            // clear pending      │
-│     - #ifdef DEBUG_ENABLED:                                     │
-│         Serial.flush()                                          │
-│         Serial.end()                                            │
-│         disableSerialPins()                                     │
-│     - (loop restarts → sleep_cpu)                               │
-└──────────────────────────────┬──────────────────────────────────┘
-                               │
-                               ▼
-                      BACK TO LOOP START 
-                            (sleep)
+│     - enableTriggerInterrupt()                                  │
+│     - clearTriggerFlags()                                       │
+│     - [DEBUG: Serial cleanup]                                   │
+│     - sleep_cpu()                                               │
+│     - ... Back to ~100µA sleep (servo unpowered) ...            │
+└─────────────────────────────────────────────────────────────────┘
 ```
 
 ## Edge Cases
@@ -178,29 +191,35 @@ When LED goes OFF → wake from sleep → servo presses Fingerbot → wait for b
 | LED blinks during boot | Interrupt disabled during wait, no re-triggers |
 | Button pressed during wait | Interrupt disabled, ignored |
 | Speaker fails to turn on | We waited 8s anyway, go to sleep. Next OFF event retries. |
+| Power-on reset (MCU) | PA6 floats briefly → R1 pullup keeps FET OFF → Servo safe |
+| Brown-out | Same as power-on, R1 keeps servo unpowered |
+| FET fails short | Servo always powered, falls back to V1 behavior (~25 days) |
+| FET fails open | Servo never powered, no button press (fails safe) |
 
 ## Configuration
 
 ```cpp
 // Debug output over serial (TX-only, 115200 baud)
 // Comment out for production to save power
-#define DEBUG_ENABLED
+// #define DEBUG_ENABLED
 
 // Trigger polarity - depends on which LDR module you're using:
 //   true  = off-shelf test module (PC2 HIGH when LED OFF)
 //   false = our custom PCB (PC2 LOW when LED OFF)
-#define INVERT_TRIGGER   true
+#define INVERT_TRIGGER   false
 
 // Servo positions in degrees - calibrate for your Fingerbot setup
-#define SERVO_REST       90       // Resting position (not touching button)
-#define SERVO_PRESS      45       // Press position (pushing Fingerbot button)
+#define SERVO_REST       30       // Resting position (not touching button)
+#define SERVO_PRESS      76       // Press position (pushing Fingerbot button)
 
 // Timing in milliseconds
-#define DEBOUNCE_MS      50       // Wait after wake before validating trigger
-#define PRESS_HOLD_MS    1000     // How long servo holds the press position
-#define PRESS_SETTLE_MS  1000     // Wait for servo to return to rest before detach
-#define SERVO_INIT_MS    1000     // Initial servo settle time at boot
-#define BOOT_WAIT_MS     8000     // Wait for speaker boot (covers LED dance)
+#define DEBOUNCE_MS         50    // Wait after wake before validating trigger
+#define PRESS_HOLD_MS       1600  // How long servo holds the press position
+#define PRESS_SETTLE_MS     1000  // Wait for servo to return to rest before detach
+#define SERVO_INIT_MS       1000  // Initial servo settle time at boot
+#define BOOT_WAIT_MS        8000  // Wait for speaker boot (covers LED dance)
+#define SERVO_PRESS_AWAIT   2000  // Wait before pressing (speaker needs time)
+#define SERVO_STABILIZE_MS  50    // V2: Let servo power stabilize after FET ON
 ```
 
 ### Polarity of trigger (INTERRUPT) matters
@@ -254,9 +273,13 @@ Initial: ON
 
 The longest `ON` duration before a final `OFF` tells you how long the LED stays solid after the boot dance. Set `BOOT_WAIT_MS` to be longer than this.
 
-## OOps ma, HW could have been a bit better 😅
+---
 
-So. after assembly of the board adn uploading the program, found out that the idle current consumption of the system is around 2.5 mA and the peak, when the servo is active, is around 12 mA. So, even though we picked low current comparator, put our micro to deep sleep and all that, we will have an av. battery life of a month (if we are lucky) based on the following ...
+## Power Consumption - V1 vs V2
+
+### The V1 Problem
+
+After assembly of V1 board and uploading the program, found out that the idle current consumption was around 2.5 mA and the peak, when the servo is active, was around 12 mA. Even though we picked low current comparator, put our micro to deep sleep and all that, battery life was only ~25 days.
 
 ![alt text](assets/v1.0_power_analysis_with_servo.gif)
 
@@ -265,48 +288,44 @@ So. after assembly of the board adn uploading the program, found out that the id
 | Sleep (servo connected) | ~2.5 mA | ~23.9 hrs | 
 | Wake + servo active | ~12 mA | ~0.1 hrs (5 triggers × ~1.2 min each) | 
 
-### Daily consumption
-
+**V1 Daily consumption:**
 ```
 (2.5 mA × 23.9 hr) + (12 mA × 0.1 hr) = 59.75 + 1.2 ≈ 61 mAh/day
 ```
 
-#### Battery life for CR123A (1500 mAh):
+**V1 Battery life (CR123A 1500 mAh):** `1500 / 61 ≈ 24-25 days` 😅
 
-```
-1500 mAh / 61 mAh/day ≈ 24-25 days
-```
-
-But with the servo disconnected, we found out that the current consumption is very low, in deep-sleep. 
-- **Deep Sleep state**: 0.1 mA (100µA) (_Of-course, there's room for improvement there too_)
+But with the servo disconnected, deep-sleep current was only **0.1 mA (100µA)**:
 
 ![alt text](assets/v1.0_power_analysis_without_servo.gif)
 
-### So the solution?
+### The V2 Solution ✅
 
-Add a low power MOSFET to control servo's power lines ...  
+Added SI2301 P-FET to control servo power. Now the servo is completely unpowered during sleep!
 
-_WIP_
+| State | V1 Current | V2 Current |
+| --- | --- | --- |
+| Sleep | ~2.5 mA | **300 µA** |
+| Wake + servo | ~12 mA | ~12 mA |
 
+**V2 Daily consumption:**
 ```
-VCC (3V) ───┬─────────── Servo VCC (red)
-            │
-         [SOURCE]
-            │
-   MCU ──┬──[GATE]  SI2301 (P-FET)
-   (PA6) │    │
-         R1  [DRAIN]
-        10k    │
-         │    └─────────── Servo VCC
-        GND
-
-Servo GND ──────────────── GND
-Servo SIG ──────────────── PA5 (existing)
+(0.1 mA × 23.9 hr) + (12 mA × 0.1 hr) = 2.39 + 1.2 ≈ 3.6 mAh/day
 ```
 
-_WIP_
+**V2 Battery life (CR123A 1500 mAh):** `1500 / 3.6 ≈ 416 days ≈ 12 months` 🎉
 
-![alt text](<assets/Screenshot 2026-04-07 at 17.49.53.png>)
+### V1 vs V2 Hardware Comparison
+
+| Component | V1 | V2 |
+|-----------|----|----|
+| SI2301 P-FET (T1) | Not present | Added |
+| R1 10K pullup | Not present | VCC → Gate |
+| PA6 function | Unused | SERVO_PWR_GATE |
+| JP2 (RX jumper) | Not present | Added |
+| Servo power | Always connected | Switched by FET |
+| Sleep current | ~2.5 mA | ~100 µA |
+| Battery life | ~25 days | **~14 months** |
 
 ## License
 
