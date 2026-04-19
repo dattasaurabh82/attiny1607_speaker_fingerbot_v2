@@ -26,7 +26,7 @@ When LED goes OFF → wake from sleep → servo presses Fingerbot → wait for b
 [SCHEMATIC](HW/schematic.pdf) (V-2.0)   
 
 ### What changed from V1, in V2?
-> Added SI2301 P-FET to control servo power, reducing sleep current from ~2.5mA to ~300µA. Battery life improved from ~25 days to **~12 months**!
+> Added SI2301 P-FET to control servo power, reducing sleep current from ~2.5mA to ~300µA. Battery life improved from ~25 days to **~6 months**!
 
 ![alt text](assets/MOSFET_servo_pwr_ctrl.png)
 
@@ -98,7 +98,7 @@ When LED goes OFF → wake from sleep → servo presses Fingerbot → wait for b
                                │
                                ▼
                           ENTER LOOP
-                    (servo unpowered, ~100µA sleep)
+                    (servo unpowered, ~300µA sleep)
 ```
 
 ### MAIN LOOP
@@ -108,7 +108,7 @@ When LED goes OFF → wake from sleep → servo presses Fingerbot → wait for b
 │  ──────────                                                     │
 │  - Clear pending flags                                          │
 │  - sleep_cpu()                                                  │
-│  - ... MCU draws ~100µA (servo is OFF via FET) ...              │
+│  - ... MCU draws ~300µA (servo is OFF via FET) ...              │
 └──────────────────────────────┬──────────────────────────────────┘
                                │
                Speaker turns OFF (LED OFF)
@@ -178,7 +178,7 @@ When LED goes OFF → wake from sleep → servo presses Fingerbot → wait for b
 │     - clearTriggerFlags()                                       │
 │     - [DEBUG: Serial cleanup]                                   │
 │     - sleep_cpu()                                               │
-│     - ... Back to ~100µA sleep (servo unpowered) ...            │
+│     - ... Back to ~300µA sleep (servo unpowered) ...            │
 └─────────────────────────────────────────────────────────────────┘
 ```
 
@@ -279,41 +279,24 @@ The longest `ON` duration before a final `OFF` tells you how long the LED stays 
 
 ### The V1 Problem
 
-After assembly of V1 board and uploading the program, found out that the idle current consumption was around 2.5 mA and the peak, when the servo is active, was around 12 mA. Even though we picked low current comparator, put our micro to deep sleep and all that, battery life was only ~25 days.
+👉🏻 [Is described here](https://github.com/dattasaurabh82/attiny1607_speaker_fingerbot#oops-ma-hw-could-have-been-a-bit-better-)
 
-![alt text](assets/v1.0_power_analysis_with_servo.gif)
-
-| State | Current | Duration/day |
-| --- | --- | ---| 
-| Sleep (servo connected) | ~2.5 mA | ~23.9 hrs | 
-| Wake + servo active | ~12 mA | ~0.1 hrs (5 triggers × ~1.2 min each) | 
-
-**V1 Daily consumption:**
-```
-(2.5 mA × 23.9 hr) + (12 mA × 0.1 hr) = 59.75 + 1.2 ≈ 61 mAh/day
-```
-
-**V1 Battery life (CR123A 1500 mAh):** `1500 / 61 ≈ 24-25 days` 😅
-
-But with the servo disconnected, deep-sleep current was only **0.1 mA (100µA)**:
-
-![alt text](assets/v1.0_power_analysis_without_servo.gif)
-
-### The V2 Solution ✅
+### The V2 Solution
 
 Added SI2301 P-FET to control servo power. Now the servo is completely unpowered during sleep!
 
 | State | V1 Current | V2 Current |
 | --- | --- | --- |
-| Sleep | ~2.5 mA | **300 µA** |
+| Sleep | ~2.5 mA | **~300 µA** |
 | Wake + servo | ~12 mA | ~12 mA |
 
 **V2 Daily consumption:**
 ```
-(0.1 mA × 23.9 hr) + (12 mA × 0.1 hr) = 2.39 + 1.2 ≈ 3.6 mAh/day
+(0.3 mA × 23.9 hr) + (12 mA × 0.1 hr) = 7.17 + 1.2 ≈ 8.4 mAh/day
 ```
 
-**V2 Battery life (CR123A 1500 mAh):** `1500 / 3.6 ≈ 416 days ≈ 12 months` 🎉
+**V2 Battery life (CR123A 1500 mAh):** `1500 / 8.4 ≈ 179 days ≈ 6 months` 🎉
+
 
 ### V1 vs V2 Hardware Comparison
 
@@ -323,9 +306,10 @@ Added SI2301 P-FET to control servo power. Now the servo is completely unpowered
 | R1 10K pullup | Not present | VCC → Gate |
 | PA6 function | Unused | SERVO_PWR_GATE |
 | JP2 (RX jumper) | Not present | Added |
+| D1 (BAS70-05) | Present | **Must bypass for 3V operation** |
 | Servo power | Always connected | Switched by FET |
-| Sleep current | ~2.5 mA | ~100 µA |
-| Battery life | ~25 days | **~14 months** |
+| Sleep current | ~2.5 mA | **~300 µA** |
+| Battery life | ~25 days | **~6 months** |
 
 ## License
 
