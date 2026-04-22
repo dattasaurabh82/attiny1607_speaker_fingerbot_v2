@@ -56,18 +56,18 @@
 
 // Timing in milliseconds
 #define DEBOUNCE_MS 50           // Wait after wake before validating trigger
-#define PRESS_HOLD_MS 1600       // How long servo holds the press position
+#define PRESS_HOLD_MS 1700       // How long servo holds the press position OLD 1600
 #define PRESS_SETTLE_MS 1000     // Wait for servo to return to rest before detach
 #define SERVO_INIT_MS 1000       // Initial servo settle time at boot
 #define BOOT_WAIT_MS 8000        // Wait for speaker boot (covers LED dance)
 #define SERVO_PRESS_AWAIT 2000   // Wait before pressing (speaker needs time after power-off)
-#define SERVO_STABILIZE_MS 50    // Let servo power stabilize after FET turns ON
+#define SERVO_STABILIZE_MS 100  // Let servo power stabilize after FET turns ON
 
 // ==================== PIN DEFINITIONS ====================
 
 #define TRIGGER_PIN PIN_PC2
 #define SERVO_PIN PIN_PA5
-#define SERVO_PWR_PIN PIN_PA6    // V2: Controls SI2301 P-FET gate
+#define SERVO_PWR_PIN PIN_PA6  // V2: Controls SI2301 P-FET gate
 
 // ==================== GLOBALS ====================
 
