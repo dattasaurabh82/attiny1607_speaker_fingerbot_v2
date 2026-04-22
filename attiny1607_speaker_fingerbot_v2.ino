@@ -55,12 +55,12 @@
 #define SERVO_PRESS 96  // Press position (pushing Fingerbot button)
 
 // Timing in milliseconds
-#define DEBOUNCE_MS 50           // Wait after wake before validating trigger
-#define PRESS_HOLD_MS 1700       // How long servo holds the press position OLD 1600
-#define PRESS_SETTLE_MS 1000     // Wait for servo to return to rest before detach
-#define SERVO_INIT_MS 1000       // Initial servo settle time at boot
-#define BOOT_WAIT_MS 8000        // Wait for speaker boot (covers LED dance)
-#define SERVO_PRESS_AWAIT 2000   // Wait before pressing (speaker needs time after power-off)
+#define DEBOUNCE_MS 50          // Wait after wake before validating trigger
+#define PRESS_HOLD_MS 1700      // How long servo holds the press position OLD 1600
+#define PRESS_SETTLE_MS 1000    // Wait for servo to return to rest before detach
+#define SERVO_INIT_MS 1000      // Initial servo settle time at boot
+#define BOOT_WAIT_MS 8000       // Wait for speaker boot (covers LED dance)
+#define SERVO_PRESS_AWAIT 2000  // Wait before pressing (speaker needs time after power-off)
 #define SERVO_STABILIZE_MS 100  // Let servo power stabilize after FET turns ON
 
 // ==================== PIN DEFINITIONS ====================
